@@ -11,6 +11,8 @@ Requirement:
 Copyright (C) 
     2009-2012 Friedrich Miescher Laboratory of the Max Planck Society, Tubingen, Germany.
     2012-2015 Memorial Sloan Kettering Cancer Center New York City, USA.
+	
+Downloaded from https://github.com/vipints/GFFtools-GX/blob/master/gff_to_bed.py
 """
 
 import re
@@ -46,15 +48,17 @@ def writeBED(tinfo):
     """
 
     for ent1 in tinfo:
-        child_flag = False  
+        child_flag = False
 
         for idx, tid in enumerate(ent1['transcripts']):
             child_flag = True 
             exon_cnt = len(ent1['exons'][idx])
+            #sys.stderr.write("%i\n" %ent1['tis'][idx])
+            #sys.stderr.write("%i\n" %ent1['cdsStop'][idx])
             exon_len = ''
             exon_cod = '' 
             rel_start = None 
-            rel_stop = None 
+            rel_stop = None
             for idz, ex_cod in enumerate(ent1['exons'][idx]):#check for exons of corresponding transcript  
                 exon_len += '%d,' % (ex_cod[1]-ex_cod[0]+1)
                 if idz == 0: #calculate the relative start position 
@@ -64,7 +68,17 @@ def writeBED(tinfo):
                 else:
                     exon_cod += '%d,' % (ex_cod[0]-1-rel_start) ## shifting the coordinates to zero 
                     rel_stop = int(ex_cod[1])
-            
+            if len(ent1['tis'][idx]):#Compute translation initiation site
+                translation_initiation_site=int(ent1['tis'][idx])-1
+            else:
+                translation_initiation_site=rel_start
+            if len(ent1['cdsStop'][idx]):#Compute stop codon
+                stop_codon=int(ent1['cdsStop'][idx])-1
+            else:
+                stop_codon=rel_stop
+            if stop_codon-translation_initiation_site<0:
+                #sys.stderr.write("Swap\n")
+                translation_initiation_site, stop_codon = stop_codon, translation_initiation_site
             if exon_len:
                 score = 0 
                 score = ent1['transcript_score'][idx] if ent1['transcript_score'].any() else score ## getting the transcript score 
@@ -74,8 +88,8 @@ def writeBED(tinfo):
                             tid[0],
                             str(score), 
                             ent1['strand'], 
-                            str(rel_start),
-                            str(rel_stop),
+                            str(translation_initiation_site),
+                            str(stop_codon),
                             '0',
                             str(exon_cnt),
                             exon_len,
